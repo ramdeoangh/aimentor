@@ -1,5 +1,4 @@
-﻿using AIMentor.Application;
-using AIMentor.Infrastructure.Repository;
+using AIMentor.Application;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AIMentor.Api.Controllers
@@ -34,6 +33,23 @@ namespace AIMentor.Api.Controllers
             }
         }
 
+        [HttpPost("rag-stream")]
+        public async Task RagStream(
+            [FromBody] ChatRequest request,
+            [FromServices] IRagService ragService,
+            CancellationToken cancellationToken)
+        {
+            Response.Headers.Append("Content-Type", "text/event-stream");
+
+            var topK = request.TopK ?? 0;
+            await foreach (var chunk in ragService.StreamRagResponseAsync(request.Message, topK, cancellationToken))
+            {
+                await Response.WriteAsync($"data: {chunk}\n\n");
+                await Response.Body.FlushAsync();
+            }
+        }
+
+        /// <summary>Legacy test endpoint; prefer <c>POST /api/documents/ingest</c> for real documents.</summary>
         [HttpPost("store")]
         public async Task<IActionResult> StoreTest([FromBody] ChatRequest request,
             [FromServices] IEmbeddingService embeddingService,
@@ -62,7 +78,10 @@ namespace AIMentor.Api.Controllers
 
         public class ChatRequest
         {
-            public string Message { get; set; }
+            public string Message { get; set; } = default!;
+
+            /// <summary>Optional override for RAG retrieval; omit to use configuration default.</summary>
+            public int? TopK { get; set; }
         }
     }
 }

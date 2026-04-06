@@ -3,7 +3,7 @@ AI Mentor – Full Project Context (For Cursor IDE)
 
 We are building a:
 
-Production-grade RAG (Retrieval-Augmented Generation) AI system using .NET 8, OpenAI, PostgreSQL, and pgvector.
+Production-grade RAG (Retrieval-Augmented Generation) AI system using .NET 9, OpenAI, PostgreSQL, and pgvector.
 
 This is NOT a simple ChatGPT wrapper.
 
@@ -28,7 +28,7 @@ Resume-level showcase
 
 Backend:
 
-.NET 8
+.NET 9
 ASP.NET Core Web API
 Clean Architecture
 EF Core
@@ -54,7 +54,7 @@ IAsyncEnumerable
 
 Clean Architecture:
 
-API → Infrastructure → Application → Domain
+Layers: Domain (entities), Application (interfaces), Infrastructure (EF, OpenAI, implementations), API (controllers, Program). The API project references Application and Infrastructure for DI registration. Application references Domain only; Infrastructure references Application and Domain.
 Layer Responsibilities
 Domain
 
@@ -66,7 +66,7 @@ Application
 
 Contains:
 
-Interfaces (ILLMService, IEmbeddingService, IVectorRepository, IRagService)
+Interfaces (ILLMService, IEmbeddingService, IVectorRepository, IRagService, IDocumentIngestionService)
 Business contracts
 No EF Core
 No OpenAI
@@ -77,7 +77,7 @@ Contains:
 OpenAI implementations
 EF Core DbContext
 VectorRepository
-RagService implementation
+RagService, DocumentIngestionService
 Embedding service
 Database logic
 API
@@ -94,8 +94,9 @@ OpenAI Chat integration
 Streaming responses using:
 CompleteChatStreamingAsync
 IAsyncEnumerable
-SSE endpoint:
-/api/chat/stream
+SSE endpoints:
+/api/chat/stream (direct LLM)
+/api/chat/rag-stream (RAG over retrieved chunks)
 What we learned:
 Chat models
 System prompts
@@ -110,8 +111,10 @@ vector(1536) column
 EF Core integration with pgvector
 VectorRepository
 Cosine similarity search
-Store endpoint
-Search endpoint
+Legacy store endpoint: POST /api/chat/store (one Document + one chunk per call)
+Search endpoint: POST /api/chat/search
+Document ingestion: POST /api/documents/ingest (title + full body; overlapping character windows, batch embeddings, one Document + many Chunks)
+
 Database Schema
 
 Documents:
@@ -186,8 +189,8 @@ This is a working RAG engine.
 
 The system currently:
 
-Stores each chunk as separate document (simplified)
-Has no proper chunking pipeline
+Uses character windows with overlap for ingestion (not true token-aware chunking yet)
+Legacy POST /api/chat/store still creates a separate Document per stored message (tests only)
 No ANN index (IVFFlat) yet
 No hybrid search
 No memory persistence
@@ -198,19 +201,16 @@ No prompt injection protection
 
 We will now move toward enterprise-grade improvements.
 
-🔥 Step 1 – Proper Document Ingestion Pipeline
+🔥 Step 1 – Document Ingestion Pipeline (baseline done; refine further)
 
-Instead of:
+Implemented:
 
-Storing raw message as document
+POST /api/documents/ingest with full body, overlapping character-based windows (see Chunking in appsettings), batch embeddings per segment, one Document + many DocumentChunks
 
-We will implement:
+Still to improve:
 
-Full document ingestion
-Chunking strategy (e.g., 500–800 tokens)
-Overlapping chunks
-Batch embedding
-Proper document-to-chunks relationship
+Token-aware chunking (500–800 tokens) replacing rough character caps
+Batch embedding API calls to OpenAI where supported
 
 Learning goals:
 
@@ -294,11 +294,7 @@ Keep DbContext in Infrastructure only
 Use repository pattern for vector operations
 🔟 Current Immediate Goal
 
-We are now ready to implement:
-
-Proper Document Ingestion + Chunking Pipeline
-
-This is the next logical architectural upgrade.
+Next upgrades: token-aware chunking, IVFFlat ANN index (Step 2), then hybrid search and memory.
 
 1️⃣1️⃣ What We Are Learning Overall
 
@@ -333,19 +329,10 @@ Streaming	✅
 Embeddings	✅
 Vector Search	✅
 Basic RAG	✅
-Ingestion Pipeline	🔜 Next
+Ingestion Pipeline	✅ (char windows; token-aware 🔜)
 Memory System	🔜 Future
 Guardrails	🔜 Future
 
 You can paste this entire context into Cursor.
 
-Now tell me:
-
-When you open Cursor, do you want to:
-
-1️⃣ Implement proper chunking pipeline first
-2️⃣ Improve RAG prompt engineering
-3️⃣ Add ANN indexing
-4️⃣ Add memory system
-
-We will proceed like senior AI engineers
+Suggested next steps: token-aware chunking, IVFFlat indexing, hybrid search, memory, guardrails.

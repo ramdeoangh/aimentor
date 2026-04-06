@@ -1,53 +1,73 @@
-﻿using AIMentor.Domain;
+using AIMentor.Application;
+using AIMentor.Domain;
 using AIMentor.Infrastructure.DBContext;
 using Microsoft.EntityFrameworkCore;
 using Pgvector;
 using Pgvector.EntityFrameworkCore;
 
-namespace AIMentor.Infrastructure.Repository
+namespace AIMentor.Infrastructure.Repository;
+
+public class VectorRepository : IVectorRepository
 {
-    public class VectorRepository : IVectorRepository
+    private readonly AIMentorDbContext _context;
+
+    public VectorRepository(AIMentorDbContext context)
     {
-        private readonly AIMentorDbContext _context; 
+        _context = context;
+    }
 
-        public VectorRepository(AIMentorDbContext context)
+    public async Task AddChunkAsync(string content, float[] embedding)
+    {
+        var document = new Document
         {
-            _context = context;
-        }
+            Id = Guid.NewGuid(),
+            Title = "Test Document",
+            Content = content
+        };
 
-        public async Task AddChunkAsync(string content, float[] embedding)
+        var chunk = new DocumentChunk
         {
-            // Create a Document
-            var document = new Document
-            {
-                Id = Guid.NewGuid(),
-                Title = "Test Document",
-                Content = content
-            };
+            Id = Guid.NewGuid(),
+            DocumentId = document.Id,
+            Content = content,
+            Embedding = new Vector(embedding),
+            Document = document
+        };
 
-            var chunk = new DocumentChunk
+        _context.Documents.Add(document);
+        _context.Chunks.Add(chunk);
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task AddDocumentWithChunksAsync(
+        Document document,
+        IReadOnlyList<(string Content, float[] Embedding)> chunks)
+    {
+        _context.Documents.Add(document);
+
+        foreach (var (content, embedding) in chunks)
+        {
+            _context.Chunks.Add(new DocumentChunk
             {
                 Id = Guid.NewGuid(),
                 DocumentId = document.Id,
                 Content = content,
                 Embedding = new Vector(embedding),
                 Document = document
-            };
-
-            _context.Documents.Add(document);
-            _context.Chunks.Add(chunk);
-
-            await _context.SaveChangesAsync();
+            });
         }
 
-        public async Task<List<DocumentChunk>> SearchSimilarAsync(float[] embedding, int topK)
-        {
-            var vector = new Vector(embedding);
+        await _context.SaveChangesAsync();
+    }
 
-            return await _context.Chunks
-                .OrderBy(c => c.Embedding.CosineDistance(vector))
-                .Take(topK)
-                .ToListAsync();
-        }
+    public async Task<List<DocumentChunk>> SearchSimilarAsync(float[] embedding, int topK)
+    {
+        var vector = new Vector(embedding);
+
+        return await _context.Chunks
+            .OrderBy(c => c.Embedding.CosineDistance(vector))
+            .Take(topK)
+            .ToListAsync();
     }
 }

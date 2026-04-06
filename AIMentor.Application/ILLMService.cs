@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+namespace AIMentor.Application;
 
-namespace AIMentor.Application
+public interface ILLMService
 {
-    public interface ILLMService
-    {
-        Task<string> GetChatResponseAsync(string userMessage);
-        IAsyncEnumerable<string> StreamChatResponseAsync(string userMessage);
-    }
+    Task<string> GetChatResponseAsync(string userMessage);
+
+    IAsyncEnumerable<string> StreamChatResponseAsync(string userMessage);
+
+    IAsyncEnumerable<string> StreamChatResponseAsync(string systemPrompt, string userMessage);
 }
