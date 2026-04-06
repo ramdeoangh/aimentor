@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
 using AIMentor.Application;
 using System.Threading.Tasks;
@@ -7,13 +7,13 @@ namespace AIMentor.Infrastructure;
 
 public class OpenAiService : ILLMService
 {
-    private readonly string? _apiKey =default;
-    private readonly string? _model =default;
+    private readonly string _apiKey;
+    private readonly string _model;
 
     public OpenAiService(IConfiguration configuration)
     {
-        _apiKey = configuration["OpenAI:APIKey"];
-        _model = configuration["OpenAI:Model"]; 
+        _apiKey = OpenAiConfiguration.GetApiKey(configuration);
+        _model = OpenAiConfiguration.GetChatModel(configuration);
     }
 
     public async Task<string> GetChatResponseAsync(string userMessage)
